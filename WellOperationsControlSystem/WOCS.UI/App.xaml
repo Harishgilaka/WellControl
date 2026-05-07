@@ -1,0 +1,10 @@
+﻿<Application x:Class="WOCS.UI.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WOCS.UI">
+    <Application.Resources>
+        <Color x:Key="PrimaryHueLight">#0082a3</Color>
+
+        <SolidColorBrush x:Key="PrimaryHueLightBrush" Color="{StaticResource PrimaryHueLight}"/>
+    </Application.Resources>
+</Application>

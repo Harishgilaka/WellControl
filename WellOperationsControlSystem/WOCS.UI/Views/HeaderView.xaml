@@ -1,0 +1,25 @@
+﻿<UserControl x:Class="WOCS.UI.Views.HeaderView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Background="{StaticResource PrimaryHueLightBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- App Name -->
+        <TextBlock Text="Well Operations Control System"
+                   VerticalAlignment="Center"
+                   Margin="20,0"
+                   FontSize="18"
+                   Foreground="White"/>
+
+        <!-- Notification Icon -->
+        <Button Grid.Column="1"
+                Margin="10"
+                Content="🔔"
+                ToolTip="Notifications"/>
+    </Grid>
+
+</UserControl>
