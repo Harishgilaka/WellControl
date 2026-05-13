@@ -1,19 +1,19 @@
-﻿using System.Collections.ObjectModel;
+﻿using Microsoft.Extensions.Logging;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Microsoft.Extensions.Logging;
-using WOCS.Infrastructure.Data;
-using WOCS.Infrastructure.Interfaces;
+using WOCS.Application.Interfaces.Services;
+using WOCS.Domain.Entities;
 
 namespace WOCS.UI.ViewModels
 {
     public class DashboardViewModel : INotifyPropertyChanged
     {
-        private readonly IExproJobRepository _repository;
+        private readonly IExproJobService _service;
         private readonly ILogger<DashboardViewModel> _logger;
         private bool _isLoading;
 
-        public ObservableCollection<ExproJob> Jobs { get; } = new ObservableCollection<ExproJob>();
+        public ObservableCollection<ExproJobDto> Jobs { get; } = new ObservableCollection<ExproJobDto>();
 
         public bool IsLoading
         {
@@ -26,19 +26,33 @@ namespace WOCS.UI.ViewModels
             }
         }
 
-        public DashboardViewModel(IExproJobRepository repository, ILogger<DashboardViewModel> logger)
+        public DashboardViewModel(IExproJobService service, ILogger<DashboardViewModel> logger)
         {
-            _repository = repository;
+            _service = service;
             _logger = logger;
             _logger.LogInformation("DashboardViewModel initialized");
             _ = InitializeAsync();
         }
 
+
         private async Task InitializeAsync()
         {
             _logger.LogInformation("DashboardViewModel initialization started");
-            await LoadTopJobsAsync();
-            _logger.LogInformation("DashboardViewModel initialization completed");
+            try
+            {
+                await LoadTopJobsAsync();
+                _logger.LogInformation("DashboardViewModel initialization completed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "InitializeAsync failed — dispatching to UI thread");
+
+                // ✅ Must use BeginInvoke (async) not Invoke (sync) to avoid deadlock
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    throw new Exception("DashboardViewModel initialization failed", ex);
+                }));
+            }
         }
 
         public async Task LoadTopJobsAsync()
@@ -46,43 +60,28 @@ namespace WOCS.UI.ViewModels
             try
             {
                 _logger.LogInformation("========== LoadTopJobsAsync REQUEST STARTED ==========");
-                _logger.LogInformation("Request: Fetching top 10 jobs from repository");
-                _logger.LogDebug("Request Time: {RequestTime}", DateTime.UtcNow);
 
                 IsLoading = true;
-                var jobs = await _repository.GetTop10Async().ConfigureAwait(false);
+                var jobs = await _service.GetJobsAsync(10); // ❌ Remove ConfigureAwait(false)
+                var jobList = jobs.ToList();
 
-                _logger.LogInformation("========== LoadTopJobsAsync RESPONSE RECEIVED ==========");
-                _logger.LogInformation("Response: Repository returned {JobCount} jobs", jobs.Count);
-                _logger.LogDebug("Response Time: {ResponseTime}", DateTime.UtcNow);
+                _logger.LogInformation("Response: Repository returned {JobCount} jobs", jobList.Count);
 
-                if (jobs.Count == 0)
-                {
-                    _logger.LogWarning("No jobs found in repository response");
-                }
-
-                // marshal collection updates to the UI thread safely
                 var dispatcher = System.Windows.Application.Current?.Dispatcher;
                 if (dispatcher != null)
                 {
-                    _logger.LogDebug("Marshaling job collection updates to UI thread");
-                    // Dispatcher.InvokeAsync returns a DispatcherOperation which exposes a Task we can await
                     await dispatcher.InvokeAsync(() =>
                     {
                         Jobs.Clear();
-                        foreach (var j in jobs)
+                        foreach (var j in jobList)
                             Jobs.Add(j);
-                        _logger.LogInformation("Jobs collection updated on UI thread with {JobCount} items", Jobs.Count);
-                    }).Task.ConfigureAwait(false);
+                    }).Task; // ❌ Remove ConfigureAwait(false) here too
                 }
                 else
                 {
-                    // Fallback: update directly (only safe in some hostings)
-                    _logger.LogWarning("Dispatcher not available, updating jobs directly");
                     Jobs.Clear();
-                    foreach (var j in jobs)
+                    foreach (var j in jobList)
                         Jobs.Add(j);
-                    _logger.LogInformation("Jobs collection updated directly with {JobCount} items", Jobs.Count);
                 }
 
                 _logger.LogInformation("========== LoadTopJobsAsync COMPLETED SUCCESSFULLY ==========");
@@ -90,8 +89,7 @@ namespace WOCS.UI.ViewModels
             catch (Exception ex)
             {
                 _logger.LogError(ex, "========== LoadTopJobsAsync FAILED ==========");
-                _logger.LogError("Error occurred while loading top jobs from repository");
-                throw;
+                throw; // ✅ rethrow to InitializeAsync catch block
             }
             finally
             {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WOCS.Application.Interfaces
+namespace WOCS.Application.Interfaces.Services
 {
     public interface IControlService
     {

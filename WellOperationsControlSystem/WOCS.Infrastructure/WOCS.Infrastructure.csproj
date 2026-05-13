@@ -21,6 +21,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WOCS.Application\WOCS.Application.csproj" />
+    <ProjectReference Include="..\WOCS.Domain\WOCS.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Data\" />
   </ItemGroup>
 
 </Project>

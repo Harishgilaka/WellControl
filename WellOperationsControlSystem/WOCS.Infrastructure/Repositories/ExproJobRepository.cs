@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
+using WOCS.Application.Interfaces.Repositories;
+using WOCS.Domain.Entities;
 using WOCS.Infrastructure.Data;
-using WOCS.Infrastructure.Interfaces;
 
 namespace WOCS.Infrastructure.Repositories
 {
@@ -12,21 +14,61 @@ namespace WOCS.Infrastructure.Repositories
         {
             _context = context;
         }
-        public async Task<List<ExproJob>> GetTop10Async()
+
+        public async Task<IEnumerable<ExproJobDto>> FindAsync(Expression<Func<ExproJobDto, bool>> predicate)
         {
-            return await _context.ExproJobs
-                                 .OrderByDescending(j => j.CreatedTime)
-                                 .Take(10)
-                                 .AsNoTracking()
-                                 .ToListAsync()
-                                 .ConfigureAwait(false);
+            var query = _context.ExproJobs.AsQueryable();
+
+            var result = await query
+                    .Select(x => new ExproJobDto
+                    {
+                        Id = x.Id,
+                        ClientId = x.ClientId,
+                        ContactAddress = x.ContactAddress,
+                        ContactDetails = x.ContactDetails,
+                        ContactName = x.ContactName,
+                        ContactTelephone = x.ContactTelephone,
+                        Description = x.Description,
+                        Name = x.Name,
+                        IsActive = x.IsActive,
+                        LastModifiedTime = x.LastModifiedTime,
+                        CreatedTime = x.CreatedTime,
+                        ModifiedBy = x.ModifiedBy,
+                        CreatedBy = x.CreatedBy
+                    })
+                    .ToListAsync();
+
+            return result;
         }
-        public async Task<ExproJob?> GetByIdAsync(Guid id)
+
+        public async Task<IEnumerable<ExproJobDto>> GetAllAsync(int? count = null)
         {
-            return await _context.ExproJobs
-                                 .AsNoTracking()
-                                 .FirstOrDefaultAsync(j => j.Id == id)
-                                 .ConfigureAwait(false);
+            var query = _context.ExproJobs.AsQueryable();
+            if (count.HasValue)
+            {
+                query = (IOrderedQueryable<ExproJob>)query.Take(count.Value);
+            }
+
+            var result = await query
+                    .Select(x => new ExproJobDto
+                    {
+                        Id = x.Id,
+                        ClientId = x.ClientId,
+                        ContactAddress = x.ContactAddress,
+                        ContactDetails = x.ContactDetails,
+                        ContactName = x.ContactName,
+                        ContactTelephone = x.ContactTelephone,
+                        Description = x.Description,
+                        Name = x.Name,
+                        IsActive = x.IsActive,
+                        LastModifiedTime = x.LastModifiedTime,
+                        CreatedTime = x.CreatedTime,
+                        ModifiedBy = x.ModifiedBy,
+                        CreatedBy = x.CreatedBy
+                    })
+                    .ToListAsync();
+
+            return result;
         }
     }
 }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WOCS.Application.Interfaces;
+using WOCS.Application.Interfaces.Services;
 
 namespace WOCS.Application.Services
 {

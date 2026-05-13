@@ -5,8 +5,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NLog.Extensions.Hosting;
 using System.Windows;
+using WOCS.Application.Interfaces.Repositories;
+using WOCS.Application.Interfaces.Services;
+using WOCS.Application.Services;
+using WOCS.Domain.Entities;
 using WOCS.Infrastructure.Data;
-using WOCS.Infrastructure.Interfaces;
 using WOCS.Infrastructure.Repositories;
 using WOCS.UI.Navigation;
 using WOCS.UI.ViewModels;
@@ -49,7 +52,12 @@ namespace WOCS.UI
                 options.UseSqlServer(configuration.GetConnectionString("WOCSContext")));
 
             // Repositories
+            services.AddScoped<IExceptionLogRepository, ExceptionLogRepository>();
             services.AddScoped<IExproJobRepository, ExproJobRepository>();
+
+            // Services
+            services.AddScoped<IExceptionLogService, ExceptionLogService>();
+            services.AddScoped<IExproJobService, ExproJobService>();
 
             // ViewModels
             services.AddSingleton<DashboardViewModel>();
@@ -69,26 +77,57 @@ namespace WOCS.UI
 
         protected override async void OnStartup(StartupEventArgs e)
         {
+            // ✅ GLOBAL UI EXCEPTION HANDLER
+            DispatcherUnhandledException += async (s, args) =>
+            {
+                // ✅ Mark as handled IMMEDIATELY — prevents app crash
+                args.Handled = true;
+
+                // ✅ Show MessageBox FIRST — before any async work
+                MessageBox.Show(
+                    "An unexpected error occurred. Please contact support.",
+                    "Application Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
+
+                // ✅ Log AFTER — failure here won't affect the MessageBox
+                try
+                {
+                    var logger = Services.GetRequiredService<IExceptionLogService>();
+                    await logger.LogAsync(
+                        args.Exception,
+                        layer: "UI",
+                        context: "DispatcherUnhandledException"
+                    );
+                }
+                catch (Exception logEx)
+                {
+                    _logger.LogError(logEx, "Failed to log exception to database");
+                }
+            };
+
+            // ✅ OPTIONAL: non-UI thread exceptions
+            AppDomain.CurrentDomain.UnhandledException += async (s, args) =>
+            {
+                if (args.ExceptionObject is Exception ex)
+                {
+                    try
+                    {
+                        var logger = Services.GetRequiredService<IExceptionLogService>();
+                        await logger.LogAsync(ex, "AppDomain", "UnhandledException");
+                    }
+                    catch { }
+                }
+            };
+
+            // ---- existing startup code ----
             _logger.LogInformation("========== APPLICATION STARTUP STARTED ==========");
-            _logger.LogInformation("Application: Well Operations Control System");
-            _logger.LogInformation("Startup Time: {StartupTime}", DateTime.UtcNow);
-            try
-            {
-                await _host.StartAsync();
-                _logger.LogInformation("Host started successfully");
 
-                var shell = _host.Services.GetRequiredService<ShellWindow>();
-                _logger.LogInformation("ShellWindow created and displayed");
-                shell.Show();
+            await _host.StartAsync();
 
-                _logger.LogInformation("========== APPLICATION STARTUP COMPLETED ==========");
-
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Application startup failed");
-                throw;
-            }
+            var shell = _host.Services.GetRequiredService<ShellWindow>();
+            shell.Show();
         }
 
         protected override async void OnExit(ExitEventArgs e)
