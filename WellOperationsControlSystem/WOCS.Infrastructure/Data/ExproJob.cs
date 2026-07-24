@@ -43,4 +43,15 @@ public partial class ExproJob
 
     [StringLength(256)]
     public string CreatedBy { get; set; } = null!;
+
+    [ForeignKey("ClientId")]
+    [InverseProperty("ExproJobs")]
+    public virtual ExproClient Client { get; set; } = null!;
+
+    [InverseProperty("JobConfiguration")]
+    public virtual ICollection<LynxOperation> LynxOperations { get; set; } = new List<LynxOperation>();
+
+    [ForeignKey("ExproJob_Id")]
+    [InverseProperty("ExproJobs")]
+    public virtual ICollection<ExproWell> ExproWells { get; set; } = new List<ExproWell>();
 }

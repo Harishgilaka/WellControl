@@ -9,9 +9,13 @@ using WOCS.Application.Interfaces.Repositories;
 using WOCS.Application.Interfaces.Services;
 using WOCS.Application.Services;
 using WOCS.Domain.Entities;
+using WOCS.Infrastructure.Communication;
 using WOCS.Infrastructure.Data;
 using WOCS.Infrastructure.Repositories;
+using WOCS.UI.Controls;
+using WOCS.UI.Dialogs;
 using WOCS.UI.Navigation;
+using WOCS.UI.Services;
 using WOCS.UI.ViewModels;
 using WOCS.UI.Views;
 
@@ -51,28 +55,42 @@ namespace WOCS.UI
             services.AddDbContext<WocsContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("WOCSContext")));
 
+            // Navigation
+            services.AddSingleton<INavigationService, NavigationService>();
+
             // Repositories
             services.AddScoped<IExceptionLogRepository, ExceptionLogRepository>();
             services.AddScoped<IExproJobRepository, ExproJobRepository>();
+            services.AddScoped<ILynxAssemblyScheduleRepository, LynxAssemblyScheduleRepository>();
+            services.AddScoped<ILynxOperationRepository, LynxOperationRepository>();
+            services.AddScoped<ILynxOperationVersionRepository, LynxOperationVersionRepository>();
+            services.AddScoped<IChirpFrequencyRangeRepository, ChirpFrequencyRangeRepository>();
 
             // Services
             services.AddScoped<IExceptionLogService, ExceptionLogService>();
             services.AddScoped<IExproJobService, ExproJobService>();
+            services.AddScoped<ITcpCommunicationService, TcpCommunicationService>();
+            services.AddScoped<ILoadingService, LoadingService>();
+            services.AddScoped<ILynxAssemblyScheduleService, LynxAssemblyScheduleService>();
+            services.AddScoped<ILynxOperationService, LynxOperationService>();
+            services.AddScoped<ILynxOperationVersionService, LynxOperationVersionService>();
 
             // ViewModels
             services.AddSingleton<DashboardViewModel>();
+            services.AddSingleton<ConnectionViewModel>();
             services.AddSingleton<MainViewModel>();
             services.AddSingleton<HeaderViewModel>();
             services.AddSingleton<FooterViewModel>();
+            services.AddSingleton<DeviceDashboardViewModel>();
 
             // Views
             services.AddSingleton<DashboardView>();
+            services.AddSingleton<LoadingOverlay>();
+            services.AddSingleton<ConnectionView>();
             services.AddSingleton<ShellWindow>();
             services.AddSingleton<HeaderView>();
             services.AddSingleton<FooterView>();
-
-            // Navigation
-            services.AddSingleton<INavigationService, NavigationService>();
+            services.AddSingleton<DeviceDashboardView>();
         }
 
         protected override async void OnStartup(StartupEventArgs e)
@@ -84,11 +102,8 @@ namespace WOCS.UI
                 args.Handled = true;
 
                 // ✅ Show MessageBox FIRST — before any async work
-                MessageBox.Show(
-                    "An unexpected error occurred. Please contact support.",
-                    "Application Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error
+                DialogService.ShowError(
+                    "An unexpected error occurred. Please contact support."
                 );
 
                 // ✅ Log AFTER — failure here won't affect the MessageBox

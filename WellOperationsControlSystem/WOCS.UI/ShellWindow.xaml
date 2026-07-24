@@ -2,29 +2,39 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:WOCS.UI.Views"
+        xmlns:controls="clr-namespace:WOCS.UI.Controls"
         Title="Well Operations Control System"
         WindowState="Maximized">
     <Grid>
 
-        <Grid.RowDefinitions>
-            <RowDefinition Height="60"/>
+
+        <Grid>
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="60"/>
+                <!-- Header -->
+                <RowDefinition Height="*"/>
+                <!-- Body -->
+                <RowDefinition Height="40"/>
+                <!-- Footer -->
+            </Grid.RowDefinitions>
+
             <!-- Header -->
-            <RowDefinition Height="*"/>
-            <!-- Body -->
-            <RowDefinition Height="40"/>
-            <!-- Footer -->
-        </Grid.RowDefinitions>
+            <ContentControl Grid.Row="0" Content="{Binding HeaderViewContent}"/>
 
-        <!-- Header -->
-        <ContentControl Grid.Row="0" Content="{Binding HeaderViewContent}"/>
-
-        <!-- Body (Navigation Host) -->
-        <ContentControl Grid.Row="1"
+            <!-- Body (Navigation Host) -->
+            <ContentControl Grid.Row="1"
                         Content="{Binding CurrentView}" />
 
-        <!-- Footer -->
-        <ContentControl Grid.Row="2" Content="{Binding FooterViewContent}"/>
+            <!-- Footer -->
+            <ContentControl Grid.Row="2" Content="{Binding FooterViewContent}"/>
 
+        </Grid>
+
+        <!-- ✅ GLOBAL LOADING OVERLAY (IMPORTANT) -->
+        <controls:LoadingOverlay
+            Panel.ZIndex="999"
+            Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
     </Grid>
 </Window>

@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WOCS.Application\WOCS.Application.csproj" />
+    <ProjectReference Include="..\WOCS.Common\WOCS.Common.csproj" />
     <ProjectReference Include="..\WOCS.Infrastructure\WOCS.Infrastructure.csproj" />
   </ItemGroup>
 
@@ -34,6 +35,10 @@
     <None Update="NLog.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Assets\" />
   </ItemGroup>
 
 </Project>

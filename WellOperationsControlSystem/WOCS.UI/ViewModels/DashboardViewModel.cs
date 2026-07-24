@@ -1,9 +1,14 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using WOCS.Application.Interfaces.Services;
 using WOCS.Domain.Entities;
+using WOCS.UI.Dialogs;
+using WOCS.UI.Navigation;
+using WOCS.UI.Views;
 
 namespace WOCS.UI.ViewModels
 {
@@ -11,36 +16,44 @@ namespace WOCS.UI.ViewModels
     {
         private readonly IExproJobService _service;
         private readonly ILogger<DashboardViewModel> _logger;
-        private bool _isLoading;
-
+        private readonly ILoadingService _loadingService;
+        private readonly IExceptionLogService _exceptionLogService;
+        private readonly INavigationService _navigationService;
+        public ICommand ViewCommand { get; }
         public ObservableCollection<ExproJobDto> Jobs { get; } = new ObservableCollection<ExproJobDto>();
-
-        public bool IsLoading
-        {
-            get => _isLoading;
-            private set
-            {
-                if (_isLoading == value) return;
-                _isLoading = value;
-                OnPropertyChanged();
-            }
-        }
-
-        public DashboardViewModel(IExproJobService service, ILogger<DashboardViewModel> logger)
+        public DashboardViewModel(IExproJobService service,
+            ILogger<DashboardViewModel> logger,
+            ILoadingService loadingService,
+            IExceptionLogService exceptionLogService,
+            INavigationService navigationService
+            )
         {
             _service = service;
             _logger = logger;
+            _loadingService = loadingService;
+            _exceptionLogService = exceptionLogService;
+            _navigationService = navigationService;
             _logger.LogInformation("DashboardViewModel initialized");
+            ViewCommand = new RelayCommand<Guid>(OnView);
+
             _ = InitializeAsync();
         }
 
+        private void OnView(Guid id)
+        {
+            _navigationService.NavigateTo<ConnectionView>(id);
+        }
 
         private async Task InitializeAsync()
         {
             _logger.LogInformation("DashboardViewModel initialization started");
+
+            _loadingService.Show();
+
             try
             {
                 await LoadTopJobsAsync();
+
                 _logger.LogInformation("DashboardViewModel initialization completed");
             }
             catch (Exception ex)
@@ -48,10 +61,23 @@ namespace WOCS.UI.ViewModels
                 _logger.LogError(ex, "InitializeAsync failed — dispatching to UI thread");
 
                 // ✅ Must use BeginInvoke (async) not Invoke (sync) to avoid deadlock
-                System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    throw new Exception("DashboardViewModel initialization failed", ex);
-                }));
+                //System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
+                //{
+                //    throw new Exception("DashboardViewModel initialization failed", ex);
+                //}));
+
+                // ✅ LOG INTO DATABASE
+                await _exceptionLogService.LogAsync(
+                    ex,
+                    layer: "UI",
+                    context: $"DashboardViewModel.InitializeAsync"
+                );
+
+                DialogService.ShowError("DashboardViewModel.InitializeAsync: " + ex.Message);
+            }
+            finally
+            {
+                _loadingService.Hide();
             }
         }
 
@@ -59,10 +85,10 @@ namespace WOCS.UI.ViewModels
         {
             try
             {
+
                 _logger.LogInformation("========== LoadTopJobsAsync REQUEST STARTED ==========");
 
-                IsLoading = true;
-                var jobs = await _service.GetJobsAsync(10); // ❌ Remove ConfigureAwait(false)
+                var jobs = await _service.GetJobsAsync(2); // ❌ Remove ConfigureAwait(false)
                 var jobList = jobs.ToList();
 
                 _logger.LogInformation("Response: Repository returned {JobCount} jobs", jobList.Count);
@@ -89,11 +115,14 @@ namespace WOCS.UI.ViewModels
             catch (Exception ex)
             {
                 _logger.LogError(ex, "========== LoadTopJobsAsync FAILED ==========");
-                throw; // ✅ rethrow to InitializeAsync catch block
-            }
-            finally
-            {
-                IsLoading = false;
+
+                await _exceptionLogService.LogAsync(
+                 ex,
+                 layer: "UI",
+                 context: $"DashboardViewModel.LoadTopJobsAsync"
+             );
+
+                DialogService.ShowError("DashboardViewModel.LoadTopJobsAsync: " + ex.Message);
             }
         }
 

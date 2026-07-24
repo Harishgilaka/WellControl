@@ -6,7 +6,126 @@
              xmlns:local="clr-namespace:WOCS.UI.Views"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
-    <Grid Margin="8">
+
+    <UserControl.Resources>
+        <!-- Card Style -->
+        <Style x:Key="JobCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Margin" Value="6"/>
+        </Style>
+
+        <!-- Green Button Style -->
+        <Style x:Key="GreenButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#43A047"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="8" Background="#F5F5F5">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Recent Jobs"
+                   FontSize="16"
+                   FontWeight="SemiBold"
+                   Foreground="#333333"
+                   Margin="6,6,6,10"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Jobs}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource JobCardStyle}" Width="270">
+                            <StackPanel>
+
+                                <!-- Header: Name -->
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Name}"
+                                               FontWeight="SemiBold"
+                                               FontSize="14"
+                                               Foreground="#222"/>
+                                    
+                                </Grid>
+
+                                <!-- Sub-details: ClientName + Address -->
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding ClientName}"
+                                               FontSize="11"
+                                               Foreground="#888"
+                                               Margin="0,0,12,0"/>
+                                    <TextBlock Text="{Binding ContactAddress}"
+                                               FontSize="11"
+                                               Foreground="#888"/>
+                                </StackPanel>
+
+                                <!-- Description placeholder -->
+                                <TextBlock Text="This is Job."
+                                           FontSize="12"
+                                           Foreground="#999"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,8"/>
+
+
+                                <!-- Footer: Prices + Button -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button Grid.Column="1"
+                                            Content="View"
+                                            Style="{StaticResource GreenButtonStyle}"
+                                            Command="{Binding DataContext.ViewCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding Id}"/>
+                                </Grid>
+
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+
+    <!--<Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -15,18 +134,54 @@
         <TextBlock Text="Recent Jobs" FontSize="16" FontWeight="SemiBold" Foreground="White" Margin="4"/>
 
         <DataGrid Grid.Row="1"
-              ItemsSource="{Binding Jobs}"
-              AutoGenerateColumns="False"
-              IsReadOnly="True"
-              CanUserAddRows="False"
-              Margin="4"
-              HeadersVisibility="Column">
+          ItemsSource="{Binding Jobs}"
+          AutoGenerateColumns="False"
+          IsReadOnly="True"
+          CanUserAddRows="False"
+          Margin="4">
+
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*"/>
-                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="3*"/>
-                <DataGridTextColumn Header="Created" Binding="{Binding CreatedTime, StringFormat=\{0:yyyy-MM-dd HH:mm\}}" Width="*"/>
-                <DataGridCheckBoxColumn Header="Active" Binding="{Binding IsActive}" Width="Auto"/>
+
+                -->
+    <!-- ✅ Name -->
+    <!--
+                <DataGridTextColumn Header="Name"
+                            Binding="{Binding Name}"
+                            Width="2*"/>
+
+                -->
+    <!-- ✅ Description -->
+    <!--
+                <DataGridTextColumn Header="Client Name"
+                            Binding="{Binding ClientName}"
+                            Width="2*"/>    
+
+                -->
+    <!-- ✅ Created -->
+    <!--
+                <DataGridTextColumn Header="Address"
+                            Binding="{Binding ContactAddress}"
+                            Width="2*"/>
+
+                -->
+    <!-- ✅ View Button -->
+    <!--
+                <DataGridTemplateColumn Header="Action" Width="1.5*">
+
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+
+                            <Button Content="View"
+                            Padding="8,3"
+                            Command="{Binding DataContext.ViewCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                            CommandParameter="{Binding Id}"/>
+
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+
+                </DataGridTemplateColumn>
+
             </DataGrid.Columns>
         </DataGrid>
-    </Grid>
+    </Grid>-->
 </UserControl>

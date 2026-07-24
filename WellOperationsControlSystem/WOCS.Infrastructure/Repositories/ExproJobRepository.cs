@@ -24,17 +24,10 @@ namespace WOCS.Infrastructure.Repositories
                     {
                         Id = x.Id,
                         ClientId = x.ClientId,
-                        ContactAddress = x.ContactAddress,
-                        ContactDetails = x.ContactDetails,
-                        ContactName = x.ContactName,
-                        ContactTelephone = x.ContactTelephone,
-                        Description = x.Description,
                         Name = x.Name,
-                        IsActive = x.IsActive,
-                        LastModifiedTime = x.LastModifiedTime,
-                        CreatedTime = x.CreatedTime,
-                        ModifiedBy = x.ModifiedBy,
-                        CreatedBy = x.CreatedBy
+                        ClientName = x.Client.Name,
+                        ContactAddress = x.ContactAddress,
+                        IsActive = x.IsActive
                     })
                     .ToListAsync();
 
@@ -46,29 +39,20 @@ namespace WOCS.Infrastructure.Repositories
             var query = _context.ExproJobs.AsQueryable();
             if (count.HasValue)
             {
-                query = (IOrderedQueryable<ExproJob>)query.Take(count.Value);
+                query = query.Take(count.Value);
             }
 
-            var result = await query
+            return await query
                     .Select(x => new ExproJobDto
                     {
                         Id = x.Id,
                         ClientId = x.ClientId,
-                        ContactAddress = x.ContactAddress,
-                        ContactDetails = x.ContactDetails,
-                        ContactName = x.ContactName,
-                        ContactTelephone = x.ContactTelephone,
-                        Description = x.Description,
                         Name = x.Name,
-                        IsActive = x.IsActive,
-                        LastModifiedTime = x.LastModifiedTime,
-                        CreatedTime = x.CreatedTime,
-                        ModifiedBy = x.ModifiedBy,
-                        CreatedBy = x.CreatedBy
+                        ClientName = x.Client.Name,
+                        ContactAddress = x.ContactAddress,
+                        IsActive = x.IsActive
                     })
                     .ToListAsync();
-
-            return result;
         }
     }
 }
