@@ -74,6 +74,7 @@ namespace WOCS.UI
             services.AddScoped<ILynxAssemblyScheduleService, LynxAssemblyScheduleService>();
             services.AddScoped<ILynxOperationService, LynxOperationService>();
             services.AddScoped<ILynxOperationVersionService, LynxOperationVersionService>();
+            services.AddScoped<IChirpFrequencyRangeService, ChirpFrequencyRangeService>();
 
             // ViewModels
             services.AddSingleton<DashboardViewModel>();

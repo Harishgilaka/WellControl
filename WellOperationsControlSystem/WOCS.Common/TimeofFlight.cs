@@ -9,7 +9,7 @@
         const int PartialMessageHeaderValue = 144;
         const int FullMesageHeaderValue = 152;
 
-        public static TimeSpan GetTimeofFlight(TimeSpan duration, TimeSpan scheduleDataInterval, int stationLevel, int dFormat)
+        public static TimeSpan GetTimeofFlight(TimeSpan duration, TimeSpan scheduleDataInterval, int stationLevel, int dFormat, double chirpFrequencyDuration)
         {
             int ExpectedSamples = 0;
 
@@ -92,7 +92,7 @@
                 partMessageBits = PartialMessageHeaderValue + pBits;
             }
 
-            double totalDuration = (fullMessageBits + partMessageBits) * 6.75 * stationLevel + (WorstCaseProcessingTime * stationLevel);
+            double totalDuration = (fullMessageBits + partMessageBits) * chirpFrequencyDuration * stationLevel + (WorstCaseProcessingTime * stationLevel);
 
             //return TimeSpan.FromSeconds(totalDuration);
 

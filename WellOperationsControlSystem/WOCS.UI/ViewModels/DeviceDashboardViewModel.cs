@@ -20,6 +20,7 @@ namespace WOCS.UI.ViewModels
         private readonly ILynxAssemblyScheduleService _lynxAssemblyScheduleService;
         private readonly ILynxOperationService _lynxOperationService;
         private readonly ILynxOperationVersionService _lynxOperationVersionService;
+        private readonly IChirpFrequencyRangeService _chirpFrequencyRangeService;
 
         public ICommand BackCommand { get; }
         public ICommand OpenCommand { get; }
@@ -37,7 +38,8 @@ namespace WOCS.UI.ViewModels
         public DeviceDashboardViewModel(INavigationService navigationService,
             ILynxAssemblyScheduleService lynxAssemblyScheduleService,
             ILynxOperationService lynxOperationService,
-            ILynxOperationVersionService lynxOperationVersionService)
+            ILynxOperationVersionService lynxOperationVersionService,
+            IChirpFrequencyRangeService chirpFrequencyRangeService)
         {
             _navigationService = navigationService;
             _lynxAssemblyScheduleService = lynxAssemblyScheduleService;
@@ -56,7 +58,7 @@ namespace WOCS.UI.ViewModels
             BackCommand = new RelayCommand(async () => await BackNavigation());
             OpenCommand = new RelayCommand(async () => await Open());
             CloseCommand = new RelayCommand(async () => await Close());
-
+            _chirpFrequencyRangeService = chirpFrequencyRangeService;
         }
 
         // 🔹 Back Navigation
@@ -83,6 +85,7 @@ namespace WOCS.UI.ViewModels
             var schedule = new ObservableCollection<Appointment>();
             var emDownholeSensorName = LynxDeviceGroup.EMDownholeSensor.DisplayName();
             var operations = await _lynxOperationService.GetOperationsWithJobIdAsync(_jobId);
+            var chirpFrequencyRange = await _chirpFrequencyRangeService.GetAllChirpFrequencyRangeAsync();
 
             foreach (var operation in operations)
             {
@@ -103,7 +106,8 @@ namespace WOCS.UI.ViewModels
                 foreach (var assembly in orderedDownholeSensorAssemblies)
                 {
                     var station = stationsById[assembly.StationId];
-                    AppendScheduleBlocks(assembly, station, schedule);
+                    double chirpFrequencyDuration = GetDurationById(chirpFrequencyRange, assembly.AssemblyDevices?.FirstOrDefault()?.LynxChirpFrequencyRangeId ?? 0);
+                    AppendScheduleBlocks(assembly, station, schedule, chirpFrequencyDuration);
                 }
             }
 
@@ -113,7 +117,7 @@ namespace WOCS.UI.ViewModels
         private void AppendScheduleBlocks(
             AssemblyDto assembly,
             StationDto station,
-            ObservableCollection<Appointment> schedule)
+            ObservableCollection<Appointment> schedule, double chirpFrequencyDuration)
         {
             DateTime? scheduleTime = assembly.ScheduleStartTime;
 
@@ -122,7 +126,7 @@ namespace WOCS.UI.ViewModels
                 .OrderBy(b => b.BlockNumber)
                 .ToList();
 
-            foreach (var actionBlock in actionBlocks)
+            foreach (var actionBlock in actionBlocks.OrderBy(b => b.BlockNumber))
             {
                 if (scheduleTime == null)
                     continue; // nothing to schedule against
@@ -133,7 +137,7 @@ namespace WOCS.UI.ViewModels
                         HandleWaitForAction(actionBlock, scheduleTime.Value, assembly, schedule),
 
                     (int)LynxScheduleActionsTypeEnum.QueryHistoricDataAction =>
-                        HandleQueryHistoricDataAction(actionBlock, scheduleTime.Value, station, assembly, schedule),
+                        HandleQueryHistoricDataAction(actionBlock, scheduleTime.Value, station, assembly, schedule, chirpFrequencyDuration),
 
                     _ => scheduleTime
                 };
@@ -157,13 +161,14 @@ namespace WOCS.UI.ViewModels
             DateTime scheduleTime,
             StationDto station,
             AssemblyDto assembly,
-            ObservableCollection<Appointment> schedule)
+            ObservableCollection<Appointment> schedule, double chirpFrequencyDuration)
         {
             actionBlock.TimeOfFlight = TimeofFlight.GetTimeofFlight(
                 actionBlock.DurationTs,
                 actionBlock.DataIntervalTs,
                 station.Position,
-                actionBlock.DataFormat);
+                actionBlock.DataFormat,
+                chirpFrequencyDuration);
 
             var app = new ActionBlockQueryForSchedule(actionBlock, scheduleTime);
             schedule.Add(app);
@@ -187,7 +192,7 @@ namespace WOCS.UI.ViewModels
             ObservableCollection<Appointment> schedule,
             int repeatCount)
         {
-            var interval = (double)actionBlock.DurationTs.TotalMinutes;
+            var interval = (double)actionBlock.TransmissionIntervalTs.TotalMinutes;
 
             for (var i = 0; i < repeatCount; i++)
             {
@@ -196,6 +201,12 @@ namespace WOCS.UI.ViewModels
                 var recursiveApp = new ActionBlockQueryForSchedule(actionBlock, scheduleTime);
                 schedule.Add(recursiveApp);
             }
+        }
+
+        public double GetDurationById(IEnumerable<ChirpFrequencyRangeDto> ranges, int id, double defaultValue = 6.75)
+        {
+            var item = ranges?.FirstOrDefault(x => x.Id == id);
+            return item?.Duration ?? defaultValue;
         }
 
         // 🔹 Open Command (Value Controller)
