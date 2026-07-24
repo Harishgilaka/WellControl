@@ -7,109 +7,110 @@
         const int BitsPerByte = 8;
         const int WorstCaseProcessingTime = 3;
         const int PartialMessageHeaderValue = 144;
-        const int FullMesageHeaderValue = 152;
+        const int FullMessageHeaderValue = 152;
+        const int RoundToNearestMinutes = 15;
 
         public static TimeSpan GetTimeofFlight(TimeSpan duration, TimeSpan scheduleDataInterval, int stationLevel, int dFormat, double chirpFrequencyDuration)
         {
-            int ExpectedSamples = 0;
-
-            if (duration != TimeSpan.Zero && scheduleDataInterval != TimeSpan.Zero)
+            int expectedSamples = GetExpectedSamples(duration, scheduleDataInterval);
+            if (expectedSamples == 0)
             {
-                ExpectedSamples = (int)(duration.TotalMinutes / scheduleDataInterval.TotalMinutes);
-                ExpectedSamples += 1; // samples include the first and last sample of the period requested duration.
-            }
-            else
-            {
-                return TimeSpan.FromSeconds(0);
+                return TimeSpan.Zero;
             }
 
-            /* How many full messages are being sent */
+            int bytesPerRecord = GetBytesPerRecord((uint)dFormat);
 
-            uint dataFormat = (uint)dFormat;
+            (int fullMessages, int partMessages, int remainingSamples) =
+                GetMessageCounts(expectedSamples, bytesPerRecord);
 
-            var temperaturePrecision = dataFormat & 0x0FU;
-            bool includeTemperature = temperaturePrecision <= 4U;
+            int totalBits = GetTotalBits(fullMessages, partMessages, remainingSamples, bytesPerRecord);
+
+            double totalSeconds = (totalBits * chirpFrequencyDuration * stationLevel) + (WorstCaseProcessingTime * stationLevel);
+
+            // TODO: add DP variance
+            return RoundUpToNearest(TimeSpan.FromSeconds(totalSeconds), RoundToNearestMinutes);
+        }
+
+        /// <summary>
+        /// Number of samples expected over the duration, inclusive of the first and last sample.
+        /// </summary>
+        private static int GetExpectedSamples(TimeSpan duration, TimeSpan scheduleDataInterval)
+        {
+            if (duration == TimeSpan.Zero || scheduleDataInterval == TimeSpan.Zero)
+            {
+                return 0;
+            }
+
+            return (int)(duration.TotalMinutes / scheduleDataInterval.TotalMinutes) + 1;
+        }
+
+        /// <summary>
+        /// Total bytes needed per sample record, based on the temperature/pressure precision
+        /// encoded in the low/high nibbles of the data format.
+        /// </summary>
+        private static int GetBytesPerRecord(uint dataFormat)
+        {
+            uint temperaturePrecision = dataFormat & 0x0FU;
             uint pressurePrecision = dataFormat >> 4;
-            bool includePressure = pressurePrecision <= 4U;
 
-            int BytesPerTempVal = 0;
-            int BytesPerPressVal = 0;
+            return GetTemperatureBytes(temperaturePrecision) + GetPressureBytes(pressurePrecision);
+        }
 
-            if (includeTemperature)
-            {
-                if (temperaturePrecision == 0)
-                {
-                    BytesPerTempVal = 2;
-                }
-                else
-                {
-                    BytesPerTempVal = 3;
-                }
-            }
+        private static int GetTemperatureBytes(uint precision)
+        {
+            if (precision > 4U) return 0; // temperature not included
+            return precision == 0 ? 2 : 3;
+        }
 
-            if (includePressure)
-            {
-                if (pressurePrecision == 0)
-                {
-                    BytesPerPressVal = 2;
-                }
-                else if (pressurePrecision <= 2)
-                {
-                    BytesPerPressVal = 3;
-                }
-                else
-                {
-                    BytesPerPressVal = 4;
-                }
-            }
+        private static int GetPressureBytes(uint precision)
+        {
+            if (precision > 4U) return 0; // pressure not included
+            if (precision == 0) return 2;
+            return precision <= 2 ? 3 : 4;
+        }
 
-            int BytesPerRecord = (BytesPerPressVal + BytesPerTempVal);
+        /// <summary>
+        /// Splits the expected samples into full messages, whether a partial message is needed,
+        /// and how many samples fall into that partial message.
+        /// </summary>
+        private static (int fullMessages, int partMessages, int remainingSamples) GetMessageCounts(
+            int expectedSamples, int bytesPerRecord)
+        {
+            int samplesPerMessage = (int)(DataSpace / bytesPerRecord);
 
-            int fullMessages = (int)(ExpectedSamples / (int)(DataSpace / BytesPerRecord));
+            int fullMessages = expectedSamples / samplesPerMessage;
+            double exactMessages = expectedSamples / (DataSpace / bytesPerRecord);
+            int partMessages = (int)Math.Ceiling(exactMessages - fullMessages);
 
-            double messages = ExpectedSamples / (DataSpace / BytesPerRecord);
+            int remainingSamples = expectedSamples - (samplesPerMessage * fullMessages);
 
-            int partMessages = (int)Math.Ceiling(messages - fullMessages);
+            return (fullMessages, partMessages, remainingSamples);
+        }
 
-            /* How many samples in partial the message */
+        /// <summary>
+        /// Total bits across all full messages plus the trailing partial message (if any).
+        /// </summary>
+        private static int GetTotalBits(int fullMessages, int partMessages, int remainingSamples, int bytesPerRecord)
+        {
+            int fullMessageBits = fullMessages > 0
+                ? (FullMessageHeaderValue + ((int)DataSpace * BitsPerByte)) * fullMessages
+                : 0;
 
-            int samplesPerMessage = (int)(DataSpace / BytesPerRecord);
-            int remainingSamples = ExpectedSamples - (samplesPerMessage * fullMessages);
-
-            /* How many bits in partial the message */
-            int pBits = remainingSamples * BytesPerRecord * BitsPerByte;
-
-            int fullMessageBits = 0;
             int partMessageBits = 0;
-
-            if (fullMessages > 0)
-            {
-                fullMessageBits = (FullMesageHeaderValue + ((int)DataSpace * BitsPerByte)) * fullMessages;
-            }
-
             if (partMessages > 0)
             {
-                partMessageBits = PartialMessageHeaderValue + pBits;
+                int partialBits = remainingSamples * bytesPerRecord * BitsPerByte;
+                partMessageBits = PartialMessageHeaderValue + partialBits;
             }
 
-            double totalDuration = (fullMessageBits + partMessageBits) * chirpFrequencyDuration * stationLevel + (WorstCaseProcessingTime * stationLevel);
+            return fullMessageBits + partMessageBits;
+        }
 
-            //return TimeSpan.FromSeconds(totalDuration);
-
-            // TODO round up!
-
-            // add DP variance
-
-            TimeSpan originalTimespan = TimeSpan.FromSeconds(totalDuration);
-
-            int roundBy = 15; // Round up to nearest 15 minutes
-
-            int minutes = (int)Math.Ceiling(originalTimespan.TotalMinutes);
-            int roundedMinutes = ((minutes + (roundBy - 1)) / roundBy) * roundBy;
-
-            TimeSpan roundedTimespan = TimeSpan.FromMinutes(roundedMinutes);
-
-            return roundedTimespan;
+        private static TimeSpan RoundUpToNearest(TimeSpan value, int roundToMinutes)
+        {
+            int minutes = (int)Math.Ceiling(value.TotalMinutes);
+            int roundedMinutes = ((minutes + (roundToMinutes - 1)) / roundToMinutes) * roundToMinutes;
+            return TimeSpan.FromMinutes(roundedMinutes);
         }
     }
 }
